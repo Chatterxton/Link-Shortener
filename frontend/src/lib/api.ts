@@ -54,7 +54,7 @@ async function request<T>(
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    throw new ApiError(data?.error || res.statusText, res.status);
+    throw new ApiError(data?.error || `Ошибка ${res.status}`, res.status);
   }
   return data as T;
 }

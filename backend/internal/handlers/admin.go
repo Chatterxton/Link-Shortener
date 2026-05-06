@@ -37,7 +37,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY u.id ASC`,
 	)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	defer rows.Close()
@@ -45,7 +45,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var u adminUserView
 		if err := rows.Scan(&u.ID, &u.Username, &u.IsAdmin, &u.CreatedAt, &u.LinksCount); err != nil {
-			writeError(w, http.StatusInternalServerError, "db error")
+			writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 			return
 		}
 		out = append(out, u)
@@ -57,21 +57,21 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+		writeError(w, http.StatusBadRequest, "Некорректный идентификатор")
 		return
 	}
 	selfID := middleware.UserID(r.Context())
 	if id == selfID {
-		writeError(w, http.StatusBadRequest, "cannot delete yourself")
+		writeError(w, http.StatusBadRequest, "Нельзя удалить самого себя")
 		return
 	}
 	cmd, err := h.pool.Exec(r.Context(), "DELETE FROM users WHERE id = $1", id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	if cmd.RowsAffected() == 0 {
-		writeError(w, http.StatusNotFound, "not found")
+		writeError(w, http.StatusNotFound, "Пользователь не найден")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -84,7 +84,7 @@ func (h *AdminHandler) ListAllLinks(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY l.created_at DESC`,
 	)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	defer rows.Close()
@@ -92,7 +92,7 @@ func (h *AdminHandler) ListAllLinks(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var v linkView
 		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.Username, &v.ExpiresAt, &v.CreatedAt); err != nil {
-			writeError(w, http.StatusInternalServerError, "db error")
+			writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 			return
 		}
 		v.ShortURL = shortURL(h.cfg, v.Code)

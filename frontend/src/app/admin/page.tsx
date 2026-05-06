@@ -25,12 +25,15 @@ export default function AdminPage() {
       setUsers(u);
       setAllLinks(l);
     } catch (err) {
-      if (err instanceof Error && /401|invalid|missing/i.test(err.message)) {
+      if (
+        err instanceof Error &&
+        /401|токен|авторизац|invalid|missing/i.test(err.message)
+      ) {
         authStore.clear();
         router.replace("/login");
         return;
       }
-      setError(err instanceof Error ? err.message : "Failed to load");
+      setError(err instanceof Error ? err.message : "Не удалось загрузить");
     } finally {
       setLoading(false);
     }
@@ -50,27 +53,34 @@ export default function AdminPage() {
   }, [refresh, router]);
 
   const deleteUser = async (id: number, username: string) => {
-    if (!confirm(`Delete user "${username}" and all their links?`)) return;
+    if (
+      !confirm(`Удалить пользователя «${username}» со всеми его ссылками?`)
+    )
+      return;
     try {
       await api.adminDeleteUser(id);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user");
+      setError(
+        err instanceof Error ? err.message : "Не удалось удалить пользователя",
+      );
     }
   };
 
   const deleteLink = async (id: number) => {
-    if (!confirm("Delete this link?")) return;
+    if (!confirm("Удалить эту ссылку?")) return;
     try {
       await api.deleteLink(id);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete link");
+      setError(
+        err instanceof Error ? err.message : "Не удалось удалить ссылку",
+      );
     }
   };
 
   if (loading) {
-    return <p className="text-slate-400">Loading...</p>;
+    return <p className="text-slate-400">Загрузка...</p>;
   }
 
   return (
@@ -78,16 +88,16 @@ export default function AdminPage() {
       {error && <p className="text-rose-400 text-sm">{error}</p>}
 
       <section>
-        <h1 className="text-2xl font-semibold mb-4">Users</h1>
+        <h1 className="text-2xl font-semibold mb-4">Пользователи</h1>
         <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-400 border-b border-slate-800">
               <tr>
                 <th className="px-4 py-2">ID</th>
-                <th className="px-4 py-2">Username</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Links</th>
-                <th className="px-4 py-2">Created</th>
+                <th className="px-4 py-2">Логин</th>
+                <th className="px-4 py-2">Роль</th>
+                <th className="px-4 py-2">Ссылок</th>
+                <th className="px-4 py-2">Создан</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -99,15 +109,15 @@ export default function AdminPage() {
                   <td className="px-4 py-2">
                     {u.is_admin ? (
                       <span className="rounded bg-indigo-700/40 text-indigo-300 px-2 py-0.5 text-xs">
-                        admin
+                        админ
                       </span>
                     ) : (
-                      <span className="text-slate-400 text-xs">user</span>
+                      <span className="text-slate-400 text-xs">пользователь</span>
                     )}
                   </td>
                   <td className="px-4 py-2">{u.links_count}</td>
                   <td className="px-4 py-2 text-slate-400">
-                    {new Date(u.created_at).toLocaleString()}
+                    {new Date(u.created_at).toLocaleString("ru-RU")}
                   </td>
                   <td className="px-4 py-2 text-right">
                     {!u.is_admin && (
@@ -115,7 +125,7 @@ export default function AdminPage() {
                         onClick={() => deleteUser(u.id, u.username)}
                         className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-xs"
                       >
-                        Delete
+                        Удалить
                       </button>
                     )}
                   </td>
@@ -127,9 +137,9 @@ export default function AdminPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold mb-3">All links</h2>
+        <h2 className="text-xl font-semibold mb-3">Все ссылки</h2>
         {allLinks.length === 0 ? (
-          <p className="text-slate-400 text-sm">No links.</p>
+          <p className="text-slate-400 text-sm">Ссылок нет.</p>
         ) : (
           <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/40">
             {allLinks.map((l) => (
@@ -150,12 +160,12 @@ export default function AdminPage() {
                     → {l.target_url}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    by @{l.username} ·{" "}
-                    {new Date(l.created_at).toLocaleString()}
+                    от @{l.username} ·{" "}
+                    {new Date(l.created_at).toLocaleString("ru-RU")}
                     {l.expires_at && (
                       <>
-                        {" · expires "}
-                        {new Date(l.expires_at).toLocaleString()}
+                        {" · истекает "}
+                        {new Date(l.expires_at).toLocaleString("ru-RU")}
                       </>
                     )}
                   </div>
@@ -164,7 +174,7 @@ export default function AdminPage() {
                   onClick={() => deleteLink(l.id)}
                   className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-sm"
                 >
-                  Delete
+                  Удалить
                 </button>
               </li>
             ))}

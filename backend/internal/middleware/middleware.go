@@ -21,13 +21,13 @@ func RequireAuth(jm *auth.JWTManager) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h := r.Header.Get("Authorization")
 			if !strings.HasPrefix(h, "Bearer ") {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing token"})
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Требуется авторизация"})
 				return
 			}
 			tok := strings.TrimPrefix(h, "Bearer ")
 			claims, err := jm.Parse(tok)
 			if err != nil {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Недействительный токен"})
 				return
 			}
 			ctx := context.WithValue(r.Context(), ctxUserID, claims.UserID)
@@ -40,7 +40,7 @@ func RequireAuth(jm *auth.JWTManager) func(http.Handler) http.Handler {
 func RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !IsAdmin(r.Context()) {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "admin only"})
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "Доступ только для администратора"})
 			return
 		}
 		next.ServeHTTP(w, r)

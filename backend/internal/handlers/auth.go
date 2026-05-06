@@ -42,36 +42,36 @@ type authResp struct {
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req credsReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid body")
+		writeError(w, http.StatusBadRequest, "Некорректный запрос")
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
 	if len(req.Username) < 3 || len(req.Username) > 64 {
-		writeError(w, http.StatusBadRequest, "username must be 3-64 chars")
+		writeError(w, http.StatusBadRequest, "Логин должен быть от 3 до 64 символов")
 		return
 	}
 	if len(req.Password) < 6 {
-		writeError(w, http.StatusBadRequest, "password must be at least 6 chars")
+		writeError(w, http.StatusBadRequest, "Пароль должен быть не короче 6 символов")
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "hash error")
+		writeError(w, http.StatusInternalServerError, "Ошибка хеширования пароля")
 		return
 	}
 
 	ctx := r.Context()
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	defer tx.Rollback(ctx)
 
 	var existingCount int64
 	if err := tx.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&existingCount); err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	isAdmin := existingCount == 0
@@ -83,21 +83,21 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	).Scan(&u.ID, &u.Username, &u.IsAdmin)
 	if err != nil {
 		if isUniqueViolation(err) {
-			writeError(w, http.StatusConflict, "username taken")
+			writeError(w, http.StatusConflict, "Логин уже занят")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 
 	tok, err := h.jwt.Generate(u.ID, u.IsAdmin)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "token error")
+		writeError(w, http.StatusInternalServerError, "Не удалось создать токен")
 		return
 	}
 	writeJSON(w, http.StatusOK, authResp{Token: tok, User: u})
@@ -106,7 +106,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req credsReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid body")
+		writeError(w, http.StatusBadRequest, "Некорректный запрос")
 		return
 	}
 
@@ -122,20 +122,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	).Scan(&id, &username, &passHash, &isAdmin)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusUnauthorized, "invalid credentials")
+			writeError(w, http.StatusUnauthorized, "Неверный логин или пароль")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(passHash), []byte(req.Password)); err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		writeError(w, http.StatusUnauthorized, "Неверный логин или пароль")
 		return
 	}
 
 	tok, err := h.jwt.Generate(id, isAdmin)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "token error")
+		writeError(w, http.StatusInternalServerError, "Не удалось создать токен")
 		return
 	}
 	writeJSON(w, http.StatusOK, authResp{
@@ -151,7 +151,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		"SELECT id, username, is_admin FROM users WHERE id = $1", uid,
 	).Scan(&u.ID, &u.Username, &u.IsAdmin)
 	if err != nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		writeError(w, http.StatusNotFound, "Пользователь не найден")
 		return
 	}
 	writeJSON(w, http.StatusOK, u)

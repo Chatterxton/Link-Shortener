@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "Link Shortener",
-  description: "Self-hosted URL shortener",
+  title: "Сокращатель ссылок",
+  description: "Самохостящийся сокращатель ссылок",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="ru">
       <body>
         <Navbar />
         <main className="container mx-auto max-w-3xl px-4 py-8">

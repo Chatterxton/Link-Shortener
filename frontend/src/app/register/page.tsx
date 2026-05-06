@@ -21,7 +21,7 @@ export default function RegisterPage() {
       authStore.set(res.token, res.user);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : "Не удалось зарегистрироваться");
     } finally {
       setLoading(false);
     }
@@ -29,14 +29,14 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-sm mx-auto">
-      <h1 className="text-2xl font-semibold mb-2">Create account</h1>
+      <h1 className="text-2xl font-semibold mb-2">Создать аккаунт</h1>
       <p className="text-xs text-slate-500 mb-6">
-        The first registered user becomes the admin.
+        Первый зарегистрированный пользователь становится администратором.
       </p>
       <form onSubmit={submit} className="space-y-4">
         <input
           className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
-          placeholder="Username (3-64 chars)"
+          placeholder="Логин (3-64 символа)"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -46,7 +46,7 @@ export default function RegisterPage() {
         <input
           className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
           type="password"
-          placeholder="Password (min 6 chars)"
+          placeholder="Пароль (минимум 6 символов)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -57,13 +57,13 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 font-medium"
         >
-          {loading ? "Creating..." : "Register"}
+          {loading ? "Создание..." : "Зарегистрироваться"}
         </button>
       </form>
       <p className="text-sm text-slate-400 mt-4">
-        Already have an account?{" "}
+        Уже есть аккаунт?{" "}
         <Link href="/login" className="text-indigo-400 hover:underline">
-          Sign in
+          Войти
         </Link>
       </p>
     </div>

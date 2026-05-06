@@ -29,7 +29,7 @@ export function Navbar() {
     <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur">
       <div className="container mx-auto max-w-3xl px-4 py-3 flex items-center justify-between">
         <Link href="/" className="font-semibold text-lg text-slate-50">
-          Shortener
+          Сокращатель
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           {user ? (
@@ -38,14 +38,14 @@ export function Navbar() {
                 href="/dashboard"
                 className="hover:text-white text-slate-300"
               >
-                Dashboard
+                Мои ссылки
               </Link>
               {user.is_admin && (
                 <Link
                   href="/admin"
                   className="hover:text-white text-slate-300"
                 >
-                  Admin
+                  Админка
                 </Link>
               )}
               <span className="text-slate-400">@{user.username}</span>
@@ -53,7 +53,7 @@ export function Navbar() {
                 onClick={logout}
                 className="rounded bg-slate-800 px-3 py-1 hover:bg-slate-700"
               >
-                Logout
+                Выйти
               </button>
             </>
           ) : (
@@ -62,13 +62,13 @@ export function Navbar() {
                 href="/login"
                 className="hover:text-white text-slate-300"
               >
-                Login
+                Вход
               </Link>
               <Link
                 href="/register"
                 className="rounded bg-indigo-600 px-3 py-1 hover:bg-indigo-500"
               >
-                Register
+                Регистрация
               </Link>
             </>
           )}

@@ -29,14 +29,14 @@ func (h *RedirectHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	).Scan(&target, &expiresAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			http.NotFound(w, r)
+			http.Error(w, "Ссылка не найдена", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "db error", http.StatusInternalServerError)
+		http.Error(w, "Ошибка базы данных", http.StatusInternalServerError)
 		return
 	}
 	if expiresAt != nil && time.Now().After(*expiresAt) {
-		http.Error(w, "link expired", http.StatusGone)
+		http.Error(w, "Срок действия ссылки истёк", http.StatusGone)
 		return
 	}
 	http.Redirect(w, r, target, http.StatusFound)

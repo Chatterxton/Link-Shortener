@@ -59,12 +59,12 @@ func shortURL(cfg *config.Config, code string) string {
 func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createLinkReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid body")
+		writeError(w, http.StatusBadRequest, "Некорректный запрос")
 		return
 	}
 	req.TargetURL = strings.TrimSpace(req.TargetURL)
 	if !urlRegex.MatchString(req.TargetURL) {
-		writeError(w, http.StatusBadRequest, "target_url must start with http:// or https://")
+		writeError(w, http.StatusBadRequest, "Ссылка должна начинаться с http:// или https://")
 		return
 	}
 
@@ -72,11 +72,11 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
 		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "expires_at must be RFC3339")
+			writeError(w, http.StatusBadRequest, "Некорректный формат срока действия")
 			return
 		}
 		if t.Before(time.Now()) {
-			writeError(w, http.StatusBadRequest, "expires_at must be in the future")
+			writeError(w, http.StatusBadRequest, "Срок действия должен быть в будущем")
 			return
 		}
 		expiresAt = &t
@@ -88,14 +88,14 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.CustomSlug) != "" {
 		slug := strings.TrimSpace(req.CustomSlug)
 		if !slugRegex.MatchString(slug) {
-			writeError(w, http.StatusBadRequest, "custom_slug must match ^[a-zA-Z0-9_-]{3,64}$")
+			writeError(w, http.StatusBadRequest, "Свой slug: 3-64 символа, латиница/цифры/_/-")
 			return
 		}
 		code = slug
 	} else {
 		c, err := h.generateUniqueCode(r.Context())
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to generate code")
+			writeError(w, http.StatusInternalServerError, "Не удалось сгенерировать код")
 			return
 		}
 		code = c
@@ -110,10 +110,10 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	).Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.ExpiresAt, &v.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
-			writeError(w, http.StatusConflict, "code already in use")
+			writeError(w, http.StatusConflict, "Этот slug уже используется")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	v.ShortURL = shortURL(h.cfg, v.Code)
@@ -128,7 +128,7 @@ func (h *LinksHandler) List(w http.ResponseWriter, r *http.Request) {
 		uid,
 	)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	defer rows.Close()
@@ -137,7 +137,7 @@ func (h *LinksHandler) List(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var v linkView
 		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.ExpiresAt, &v.CreatedAt); err != nil {
-			writeError(w, http.StatusInternalServerError, "db error")
+			writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 			return
 		}
 		v.ShortURL = shortURL(h.cfg, v.Code)
@@ -150,7 +150,7 @@ func (h *LinksHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid id")
+		writeError(w, http.StatusBadRequest, "Некорректный идентификатор")
 		return
 	}
 	uid := middleware.UserID(r.Context())
@@ -167,11 +167,11 @@ func (h *LinksHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	cmd, err := h.pool.Exec(r.Context(), sql, args...)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "db error")
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
 	if cmd.RowsAffected() == 0 {
-		writeError(w, http.StatusNotFound, "not found")
+		writeError(w, http.StatusNotFound, "Ссылка не найдена")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
