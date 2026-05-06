@@ -226,47 +226,50 @@ export function DateTimePicker({
             })}
           </div>
 
-          <div className="mt-3 flex items-center gap-2 border-t border-slate-800 pt-3">
-            <span className="text-xs text-slate-400">Время:</span>
-            <input
-              type="number"
-              min={0}
-              max={23}
-              value={hours.toString().padStart(2, "0")}
-              onChange={(e) =>
-                setHour(parseInt(e.target.value || "0", 10) || 0)
-              }
-              className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
-            />
-            <span className="text-slate-500">:</span>
-            <input
-              type="number"
-              min={0}
-              max={59}
-              value={minutes.toString().padStart(2, "0")}
-              onChange={(e) =>
-                setMinute(parseInt(e.target.value || "0", 10) || 0)
-              }
-              className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
-            />
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={() => {
-                onChange(null);
-                setOpen(false);
-              }}
-              className="text-xs text-slate-400 hover:text-slate-200"
-            >
-              Очистить
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-1 text-sm font-medium"
-            >
-              Готово
-            </button>
+          <div className="mt-3 border-t border-slate-800 pt-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Время:</span>
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={hours.toString().padStart(2, "0")}
+                onChange={(e) =>
+                  setHour(parseInt(e.target.value || "0", 10) || 0)
+                }
+                className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
+              />
+              <span className="text-slate-500">:</span>
+              <input
+                type="number"
+                min={0}
+                max={59}
+                value={minutes.toString().padStart(2, "0")}
+                onChange={(e) =>
+                  setMinute(parseInt(e.target.value || "0", 10) || 0)
+                }
+                className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1"
+              >
+                Очистить
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded bg-indigo-600 hover:bg-indigo-500 px-4 py-1 text-sm font-medium"
+              >
+                Готово
+              </button>
+            </div>
           </div>
         </div>
       )}
