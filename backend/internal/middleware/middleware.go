@@ -9,6 +9,8 @@ import (
 	"github.com/vladimir/link-shortener/internal/auth"
 )
 
+const AuthCookieName = "auth_token"
+
 type ctxKey string
 
 const (
@@ -16,15 +18,25 @@ const (
 	ctxIsAdmin ctxKey = "is_admin"
 )
 
+func extractToken(r *http.Request) string {
+	if c, err := r.Cookie(AuthCookieName); err == nil && c.Value != "" {
+		return c.Value
+	}
+	h := r.Header.Get("Authorization")
+	if strings.HasPrefix(h, "Bearer ") {
+		return strings.TrimPrefix(h, "Bearer ")
+	}
+	return ""
+}
+
 func RequireAuth(jm *auth.JWTManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h := r.Header.Get("Authorization")
-			if !strings.HasPrefix(h, "Bearer ") {
+			tok := extractToken(r)
+			if tok == "" {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Требуется авторизация"})
 				return
 			}
-			tok := strings.TrimPrefix(h, "Bearer ")
 			claims, err := jm.Parse(tok)
 			if err != nil {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Недействительный токен"})
@@ -57,17 +69,30 @@ func IsAdmin(ctx context.Context) bool {
 	return v
 }
 
-func CORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+// CORS returns middleware that handles cross-origin requests.
+// If allowedOrigin is empty, no CORS headers are emitted (suitable when frontend
+// and backend share the same origin via reverse proxy). When set, the configured
+// origin is mirrored back and credentials are allowed (required for cookie auth).
+func CORS(allowedOrigin string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if allowedOrigin != "" {
+				origin := r.Header.Get("Origin")
+				if origin != "" && origin == allowedOrigin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Vary", "Origin")
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				}
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

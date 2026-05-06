@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, type AdminUser, type Link as LinkRow } from "@/lib/api";
 import { authStore } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CreateUserDialog } from "@/components/CreateUserDialog";
 
 type ConfirmState =
   | { kind: "user"; id: number; name: string }
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -83,7 +85,15 @@ export default function AdminPage() {
       )}
 
       <section>
-        <h1 className="text-2xl font-semibold mb-4">Пользователи</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-semibold">Пользователи</h1>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-3 py-1.5 font-medium"
+          >
+            Добавить
+          </button>
+        </div>
         <div className={`overflow-x-auto ${cardCls}`}>
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
@@ -155,6 +165,11 @@ export default function AdminPage() {
                 className="p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
+                  {l.note && (
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-0.5">
+                      {l.note}
+                    </div>
+                  )}
                   <a
                     href={l.short_url}
                     target="_blank"
@@ -169,6 +184,9 @@ export default function AdminPage() {
                   <div className="text-xs text-slate-500 mt-1">
                     от @{l.username} ·{" "}
                     {new Date(l.created_at).toLocaleString("ru-RU")}
+                    {" · "}
+                    {l.click_count}
+                    {l.max_clicks != null ? `/${l.max_clicks}` : ""} переходов
                     {l.expires_at && (
                       <>
                         {" · истекает "}
@@ -194,6 +212,12 @@ export default function AdminPage() {
           </ul>
         )}
       </section>
+
+      <CreateUserDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={refresh}
+      />
 
       <ConfirmDialog
         open={confirmState !== null}

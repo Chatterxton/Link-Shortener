@@ -39,17 +39,22 @@ type createLinkReq struct {
 	TargetURL  string  `json:"target_url"`
 	CustomSlug string  `json:"custom_slug,omitempty"`
 	ExpiresAt  *string `json:"expires_at,omitempty"`
+	Note       string  `json:"note,omitempty"`
+	MaxClicks  *int    `json:"max_clicks,omitempty"`
 }
 
 type linkView struct {
-	ID        int64      `json:"id"`
-	Code      string     `json:"code"`
-	ShortURL  string     `json:"short_url"`
-	TargetURL string     `json:"target_url"`
-	UserID    int64      `json:"user_id"`
-	Username  string     `json:"username,omitempty"`
-	ExpiresAt *time.Time `json:"expires_at"`
-	CreatedAt time.Time  `json:"created_at"`
+	ID         int64      `json:"id"`
+	Code       string     `json:"code"`
+	ShortURL   string     `json:"short_url"`
+	TargetURL  string     `json:"target_url"`
+	UserID     int64      `json:"user_id"`
+	Username   string     `json:"username,omitempty"`
+	Note       string     `json:"note"`
+	ClickCount int64      `json:"click_count"`
+	MaxClicks  *int       `json:"max_clicks"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 func shortURL(cfg *config.Config, code string) string {
@@ -65,6 +70,17 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 	req.TargetURL = strings.TrimSpace(req.TargetURL)
 	if !urlRegex.MatchString(req.TargetURL) {
 		writeError(w, http.StatusBadRequest, "Ссылка должна начинаться с http:// или https://")
+		return
+	}
+
+	note := strings.TrimSpace(req.Note)
+	if len(note) > 255 {
+		writeError(w, http.StatusBadRequest, "Описание не может быть длиннее 255 символов")
+		return
+	}
+
+	if req.MaxClicks != nil && *req.MaxClicks <= 0 {
+		writeError(w, http.StatusBadRequest, "Лимит кликов должен быть положительным числом")
 		return
 	}
 
@@ -103,11 +119,11 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var v linkView
 	err := h.pool.QueryRow(r.Context(),
-		`INSERT INTO links (code, target_url, user_id, expires_at)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id, code, target_url, user_id, expires_at, created_at`,
-		code, req.TargetURL, uid, expiresAt,
-	).Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.ExpiresAt, &v.CreatedAt)
+		`INSERT INTO links (code, target_url, user_id, expires_at, note, max_clicks)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id, code, target_url, user_id, note, click_count, max_clicks, expires_at, created_at`,
+		code, req.TargetURL, uid, expiresAt, note, req.MaxClicks,
+	).Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.Note, &v.ClickCount, &v.MaxClicks, &v.ExpiresAt, &v.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			writeError(w, http.StatusConflict, "Этот slug уже используется")
@@ -123,7 +139,7 @@ func (h *LinksHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *LinksHandler) List(w http.ResponseWriter, r *http.Request) {
 	uid := middleware.UserID(r.Context())
 	rows, err := h.pool.Query(r.Context(),
-		`SELECT id, code, target_url, user_id, expires_at, created_at
+		`SELECT id, code, target_url, user_id, note, click_count, max_clicks, expires_at, created_at
 		 FROM links WHERE user_id = $1 ORDER BY created_at DESC`,
 		uid,
 	)
@@ -136,7 +152,7 @@ func (h *LinksHandler) List(w http.ResponseWriter, r *http.Request) {
 	out := []linkView{}
 	for rows.Next() {
 		var v linkView
-		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.ExpiresAt, &v.CreatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.Note, &v.ClickCount, &v.MaxClicks, &v.ExpiresAt, &v.CreatedAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 			return
 		}

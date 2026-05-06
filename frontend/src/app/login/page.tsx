@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { api } from "@/lib/api";
 import { authStore } from "@/lib/auth";
 
@@ -18,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await api.login(username, password);
-      authStore.set(res.token, res.user);
+      authStore.setUser(res.user);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось войти");
@@ -40,6 +39,7 @@ export default function LoginPage() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
+          autoComplete="username"
         />
         <input
           className={inputCls}
@@ -48,6 +48,7 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          autoComplete="current-password"
         />
         {error && (
           <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
@@ -59,14 +60,8 @@ export default function LoginPage() {
           {loading ? "Вход..." : "Войти"}
         </button>
       </form>
-      <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
-        Нет аккаунта?{" "}
-        <Link
-          href="/register"
-          className="text-indigo-600 dark:text-indigo-400 hover:underline"
-        >
-          Зарегистрироваться
-        </Link>
+      <p className="text-xs text-slate-500 mt-4">
+        Учётные записи создаёт администратор.
       </p>
     </div>
   );

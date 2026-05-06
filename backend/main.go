@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
 
 	"github.com/vladimir/link-shortener/internal/auth"
 	"github.com/vladimir/link-shortener/internal/config"
@@ -34,23 +35,34 @@ func main() {
 		log.Fatalf("db migrate: %v", err)
 	}
 
-	jwtMgr := auth.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTTTLHours)*time.Hour)
+	jwtTTL := time.Duration(cfg.JWTTTLHours) * time.Hour
+	jwtMgr := auth.NewJWTManager(cfg.JWTSecret, jwtTTL)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
-	r.Use(appmw.CORS)
+	r.Use(appmw.CORS(cfg.CORSOrigin))
 
-	authH := handlers.NewAuthHandler(pool, jwtMgr)
+	authH := handlers.NewAuthHandler(pool, jwtMgr, cfg.CookieSecure(), jwtTTL)
 	linksH := handlers.NewLinksHandler(pool, cfg)
 	adminH := handlers.NewAdminHandler(pool, cfg)
 	redirectH := handlers.NewRedirectHandler(pool)
 
+	loginLimiter := httprate.LimitByIP(cfg.LoginRatePerMin, time.Minute)
+	redirectLimiter := httprate.LimitByIP(cfg.RedirectRatePerMin, time.Minute)
+
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/auth/register", authH.Register)
-		r.Post("/auth/login", authH.Login)
+		r.Get("/auth/needs-bootstrap", authH.NeedsBootstrap)
+
+		r.Group(func(r chi.Router) {
+			r.Use(loginLimiter)
+			r.Post("/auth/register", authH.Register)
+			r.Post("/auth/login", authH.Login)
+		})
+
+		r.Post("/auth/logout", authH.Logout)
 
 		r.Group(func(r chi.Router) {
 			r.Use(appmw.RequireAuth(jwtMgr))
@@ -64,13 +76,18 @@ func main() {
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.RequireAdmin)
 				r.Get("/admin/users", adminH.ListUsers)
+				r.Post("/admin/users", adminH.CreateUser)
 				r.Delete("/admin/users/{id}", adminH.DeleteUser)
 				r.Get("/admin/links", adminH.ListAllLinks)
 			})
 		})
 	})
 
-	r.Get("/r/{code}", redirectH.Redirect)
+	r.Group(func(r chi.Router) {
+		r.Use(redirectLimiter)
+		r.Get("/r/{code}", redirectH.Redirect)
+	})
+
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

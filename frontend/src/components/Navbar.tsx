@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authStore } from "@/lib/auth";
-import type { User } from "@/lib/api";
+import { api, type User } from "@/lib/api";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Navbar() {
@@ -21,7 +21,12 @@ export function Navbar() {
     };
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ignore — clearing client state regardless
+    }
     authStore.clear();
     router.push("/login");
   };

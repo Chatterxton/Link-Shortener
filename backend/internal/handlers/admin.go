@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/vladimir/link-shortener/internal/config"
 	"github.com/vladimir/link-shortener/internal/middleware"
@@ -53,6 +56,52 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+type createUserReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	IsAdmin  bool   `json:"is_admin"`
+}
+
+func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var req createUserReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Некорректный запрос")
+		return
+	}
+	username := strings.TrimSpace(req.Username)
+	if len(username) < 3 || len(username) > 64 {
+		writeError(w, http.StatusBadRequest, "Логин должен быть от 3 до 64 символов")
+		return
+	}
+	if len(req.Password) < 6 {
+		writeError(w, http.StatusBadRequest, "Пароль должен быть не короче 6 символов")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Ошибка хеширования пароля")
+		return
+	}
+
+	var u adminUserView
+	err = h.pool.QueryRow(r.Context(),
+		`INSERT INTO users (username, password_hash, is_admin)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, username, is_admin, created_at, 0::bigint AS links_count`,
+		username, string(hash), req.IsAdmin,
+	).Scan(&u.ID, &u.Username, &u.IsAdmin, &u.CreatedAt, &u.LinksCount)
+	if err != nil {
+		if isUniqueViolation(err) {
+			writeError(w, http.StatusConflict, "Логин уже занят")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
+		return
+	}
+	writeJSON(w, http.StatusOK, u)
+}
+
 func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -79,7 +128,7 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminHandler) ListAllLinks(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.pool.Query(r.Context(),
-		`SELECT l.id, l.code, l.target_url, l.user_id, u.username, l.expires_at, l.created_at
+		`SELECT l.id, l.code, l.target_url, l.user_id, u.username, l.note, l.click_count, l.max_clicks, l.expires_at, l.created_at
 		 FROM links l JOIN users u ON u.id = l.user_id
 		 ORDER BY l.created_at DESC`,
 	)
@@ -91,7 +140,7 @@ func (h *AdminHandler) ListAllLinks(w http.ResponseWriter, r *http.Request) {
 	out := []linkView{}
 	for rows.Next() {
 		var v linkView
-		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.Username, &v.ExpiresAt, &v.CreatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Code, &v.TargetURL, &v.UserID, &v.Username, &v.Note, &v.ClickCount, &v.MaxClicks, &v.ExpiresAt, &v.CreatedAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 			return
 		}

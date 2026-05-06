@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,13 +15,17 @@ import (
 	"github.com/vladimir/link-shortener/internal/middleware"
 )
 
+const AuthCookieName = "auth_token"
+
 type AuthHandler struct {
-	pool *pgxpool.Pool
-	jwt  *auth.JWTManager
+	pool         *pgxpool.Pool
+	jwt          *auth.JWTManager
+	cookieSecure bool
+	cookieTTL    time.Duration
 }
 
-func NewAuthHandler(pool *pgxpool.Pool, jm *auth.JWTManager) *AuthHandler {
-	return &AuthHandler{pool: pool, jwt: jm}
+func NewAuthHandler(pool *pgxpool.Pool, jm *auth.JWTManager, cookieSecure bool, cookieTTL time.Duration) *AuthHandler {
+	return &AuthHandler{pool: pool, jwt: jm, cookieSecure: cookieSecure, cookieTTL: cookieTTL}
 }
 
 type credsReq struct {
@@ -34,9 +39,48 @@ type userView struct {
 	IsAdmin  bool   `json:"is_admin"`
 }
 
-type authResp struct {
-	Token string   `json:"token"`
-	User  userView `json:"user"`
+func (h *AuthHandler) setAuthCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    token,
+		Path:     "/",
+		MaxAge:   int(h.cookieTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   h.cookieSecure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (h *AuthHandler) clearAuthCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.cookieSecure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func validateCreds(username, password string) (string, string) {
+	username = strings.TrimSpace(username)
+	if len(username) < 3 || len(username) > 64 {
+		return "", "Логин должен быть от 3 до 64 символов"
+	}
+	if len(password) < 6 {
+		return "", "Пароль должен быть не короче 6 символов"
+	}
+	return username, ""
+}
+
+func (h *AuthHandler) NeedsBootstrap(w http.ResponseWriter, r *http.Request) {
+	var count int64
+	if err := h.pool.QueryRow(r.Context(), "SELECT COUNT(*) FROM users").Scan(&count); err != nil {
+		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"needs_bootstrap": count == 0})
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -45,13 +89,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Некорректный запрос")
 		return
 	}
-	req.Username = strings.TrimSpace(req.Username)
-	if len(req.Username) < 3 || len(req.Username) > 64 {
-		writeError(w, http.StatusBadRequest, "Логин должен быть от 3 до 64 символов")
-		return
-	}
-	if len(req.Password) < 6 {
-		writeError(w, http.StatusBadRequest, "Пароль должен быть не короче 6 символов")
+	username, vErr := validateCreds(req.Username, req.Password)
+	if vErr != "" {
+		writeError(w, http.StatusBadRequest, vErr)
 		return
 	}
 
@@ -74,12 +114,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Ошибка базы данных")
 		return
 	}
-	isAdmin := existingCount == 0
+	if existingCount > 0 {
+		writeError(w, http.StatusForbidden, "Регистрация закрыта. Обратитесь к администратору.")
+		return
+	}
 
 	var u userView
 	err = tx.QueryRow(ctx,
-		"INSERT INTO users (username, password_hash, is_admin) VALUES ($1, $2, $3) RETURNING id, username, is_admin",
-		req.Username, string(hash), isAdmin,
+		"INSERT INTO users (username, password_hash, is_admin) VALUES ($1, $2, TRUE) RETURNING id, username, is_admin",
+		username, string(hash),
 	).Scan(&u.ID, &u.Username, &u.IsAdmin)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -100,7 +143,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Не удалось создать токен")
 		return
 	}
-	writeJSON(w, http.StatusOK, authResp{Token: tok, User: u})
+	h.setAuthCookie(w, tok)
+	writeJSON(w, http.StatusOK, map[string]any{"user": u})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -138,10 +182,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Не удалось создать токен")
 		return
 	}
-	writeJSON(w, http.StatusOK, authResp{
-		Token: tok,
-		User:  userView{ID: id, Username: username, IsAdmin: isAdmin},
+	h.setAuthCookie(w, tok)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user": userView{ID: id, Username: username, IsAdmin: isAdmin},
 	})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, _ *http.Request) {
+	h.clearAuthCookie(w)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
