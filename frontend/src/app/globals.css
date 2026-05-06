@@ -8,7 +8,7 @@ body {
 }
 
 body {
-  @apply bg-slate-950 text-slate-100;
+  @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors;
 }
 
 /* Hide native number input spinners */

@@ -49,7 +49,11 @@ export default function DashboardPage() {
     e.preventDefault();
     setError(null);
 
-    if (slugEnabled && slug.trim() && !/^[a-zA-Z0-9_-]{3,64}$/.test(slug.trim())) {
+    if (
+      slugEnabled &&
+      slug.trim() &&
+      !/^[a-zA-Z0-9_-]{3,64}$/.test(slug.trim())
+    ) {
       setError("Свой slug: 3-64 символа, латиница/цифры/_/-");
       return;
     }
@@ -97,16 +101,18 @@ export default function DashboardPage() {
     }
   };
 
+  const inputCls =
+    "w-full rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 transition-colors";
+  const cardCls =
+    "rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40";
+
   return (
     <div className="space-y-8">
       <section>
         <h1 className="text-2xl font-semibold mb-4">Создать короткую ссылку</h1>
-        <form
-          onSubmit={create}
-          className="space-y-4 rounded-lg border border-slate-800 bg-slate-900/40 p-4"
-        >
+        <form onSubmit={create} className={`space-y-4 ${cardCls} p-4`}>
           <input
-            className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
+            className={inputCls}
             placeholder="https://example.com/очень/длинный/адрес"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -126,7 +132,7 @@ export default function DashboardPage() {
             />
             {slugEnabled && (
               <input
-                className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 animate-popIn"
+                className={`${inputCls} animate-popIn`}
                 placeholder="my-link"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
@@ -157,11 +163,13 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {error && <p className="text-rose-400 text-sm">{error}</p>}
+          {error && (
+            <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+          )}
 
           <button
             disabled={creating}
-            className="rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 font-medium"
+            className="rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 px-4 py-2 font-medium"
           >
             {creating ? "Создание..." : "Сократить"}
           </button>
@@ -171,9 +179,13 @@ export default function DashboardPage() {
       <section>
         <h2 className="text-xl font-semibold mb-3">Ваши ссылки</h2>
         {links.length === 0 ? (
-          <p className="text-slate-400 text-sm">Ссылок пока нет.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
+            Ссылок пока нет.
+          </p>
         ) : (
-          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/40">
+          <ul
+            className={`divide-y divide-slate-200 dark:divide-slate-800 ${cardCls}`}
+          >
             {links.map((l) => (
               <li
                 key={l.id}
@@ -184,11 +196,11 @@ export default function DashboardPage() {
                     href={l.short_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-indigo-400 hover:underline font-mono break-all"
+                    className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono break-all"
                   >
                     {l.short_url}
                   </a>
-                  <div className="text-xs text-slate-400 truncate">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     → {l.target_url}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
@@ -204,13 +216,13 @@ export default function DashboardPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => copy(l.id, l.short_url)}
-                    className="rounded bg-slate-800 hover:bg-slate-700 px-3 py-1 text-sm"
+                    className="rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1 text-sm"
                   >
                     {copied === l.id ? "Скопировано!" : "Копировать"}
                   </button>
                   <button
                     onClick={() => setDeletingId(l.id)}
-                    className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-sm"
+                    className="rounded bg-rose-600/90 hover:bg-rose-500 text-white px-3 py-1 text-sm"
                   >
                     Удалить
                   </button>

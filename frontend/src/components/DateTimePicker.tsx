@@ -77,7 +77,7 @@ export function DateTimePicker({
   const year = view.getFullYear();
   const month = view.getMonth();
   const first = new Date(year, month, 1);
-  const firstWeekday = (first.getDay() + 6) % 7; // Mon=0
+  const firstWeekday = (first.getDay() + 6) % 7;
   const startDate = new Date(year, month, 1 - firstWeekday);
 
   const cells: { date: Date; current: boolean }[] = [];
@@ -124,12 +124,24 @@ export function DateTimePicker({
   const hours = value?.getHours() ?? 23;
   const minutes = value?.getMinutes() ?? 59;
 
+  const triggerCls =
+    "w-full text-left rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 hover:border-slate-400 dark:hover:border-slate-600 transition-colors flex items-center justify-between";
+
+  const popoverCls =
+    "absolute z-30 mt-2 w-[320px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl p-3 animate-popIn";
+
+  const navBtnCls =
+    "rounded px-2 py-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 text-lg leading-none";
+
+  const numInputCls =
+    "w-14 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-2 py-1 text-sm text-center";
+
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full text-left rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 hover:border-slate-600 transition-colors flex items-center justify-between"
+        className={triggerCls}
       >
         <span>
           {value ? (
@@ -164,23 +176,23 @@ export function DateTimePicker({
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-2 w-[320px] rounded-xl border border-slate-700 bg-slate-900 shadow-2xl p-3 animate-popIn">
+        <div className={popoverCls}>
           <div className="flex items-center justify-between mb-3">
             <button
               type="button"
               onClick={() => setView(new Date(year, month - 1, 1))}
-              className="rounded px-2 py-1 hover:bg-slate-800 text-slate-300 text-lg leading-none"
+              className={navBtnCls}
               aria-label="Предыдущий месяц"
             >
               ‹
             </button>
-            <div className="text-sm font-medium text-slate-100">
+            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {MONTHS_RU[month]} {year}
             </div>
             <button
               type="button"
               onClick={() => setView(new Date(year, month + 1, 1))}
-              className="rounded px-2 py-1 hover:bg-slate-800 text-slate-300 text-lg leading-none"
+              className={navBtnCls}
               aria-label="Следующий месяц"
             >
               ›
@@ -203,14 +215,16 @@ export function DateTimePicker({
               const cls = [
                 "h-8 rounded text-sm transition-colors",
                 !c.current && !isSelected
-                  ? "text-slate-600"
-                  : "text-slate-200",
+                  ? "text-slate-400 dark:text-slate-600"
+                  : "text-slate-700 dark:text-slate-200",
                 isSelected
-                  ? "bg-indigo-600 text-white font-semibold"
+                  ? "bg-indigo-600 text-white font-semibold hover:bg-indigo-600"
                   : isToday
-                    ? "ring-1 ring-indigo-500/50 hover:bg-slate-800"
-                    : "hover:bg-slate-800",
-                disabled ? "opacity-30 cursor-not-allowed hover:bg-transparent" : "",
+                    ? "ring-1 ring-indigo-500/50 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800",
+                disabled
+                  ? "opacity-30 cursor-not-allowed hover:bg-transparent dark:hover:bg-transparent"
+                  : "",
               ].join(" ");
               return (
                 <button
@@ -226,9 +240,11 @@ export function DateTimePicker({
             })}
           </div>
 
-          <div className="mt-3 border-t border-slate-800 pt-3 space-y-3">
+          <div className="mt-3 border-t border-slate-200 dark:border-slate-800 pt-3 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Время:</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Время:
+              </span>
               <input
                 type="number"
                 min={0}
@@ -237,7 +253,7 @@ export function DateTimePicker({
                 onChange={(e) =>
                   setHour(parseInt(e.target.value || "0", 10) || 0)
                 }
-                className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
+                className={numInputCls}
               />
               <span className="text-slate-500">:</span>
               <input
@@ -248,7 +264,7 @@ export function DateTimePicker({
                 onChange={(e) =>
                   setMinute(parseInt(e.target.value || "0", 10) || 0)
                 }
-                className="w-14 rounded bg-slate-800 border border-slate-700 px-2 py-1 text-sm text-center"
+                className={numInputCls}
               />
             </div>
             <div className="flex items-center justify-end gap-2">
@@ -258,14 +274,14 @@ export function DateTimePicker({
                   onChange(null);
                   setOpen(false);
                 }}
-                className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1"
+                className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 px-2 py-1"
               >
                 Очистить
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded bg-indigo-600 hover:bg-indigo-500 px-4 py-1 text-sm font-medium"
+                className="rounded bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1 text-sm font-medium"
               >
                 Готово
               </button>

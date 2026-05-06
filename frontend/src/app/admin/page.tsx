@@ -70,18 +70,23 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <p className="text-slate-400">Загрузка...</p>;
+    return <p className="text-slate-500 dark:text-slate-400">Загрузка...</p>;
   }
+
+  const cardCls =
+    "rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40";
 
   return (
     <div className="space-y-10">
-      {error && <p className="text-rose-400 text-sm">{error}</p>}
+      {error && (
+        <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+      )}
 
       <section>
         <h1 className="text-2xl font-semibold mb-4">Пользователи</h1>
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40">
+        <div className={`overflow-x-auto ${cardCls}`}>
           <table className="w-full text-sm">
-            <thead className="text-left text-slate-400 border-b border-slate-800">
+            <thead className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-4 py-2">ID</th>
                 <th className="px-4 py-2">Логин</th>
@@ -91,22 +96,24 @@ export default function AdminPage() {
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {users.map((u) => (
                 <tr key={u.id}>
                   <td className="px-4 py-2 font-mono">{u.id}</td>
                   <td className="px-4 py-2">{u.username}</td>
                   <td className="px-4 py-2">
                     {u.is_admin ? (
-                      <span className="rounded bg-indigo-700/40 text-indigo-300 px-2 py-0.5 text-xs">
+                      <span className="rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-700/40 dark:text-indigo-300 px-2 py-0.5 text-xs">
                         админ
                       </span>
                     ) : (
-                      <span className="text-slate-400 text-xs">пользователь</span>
+                      <span className="text-slate-500 dark:text-slate-400 text-xs">
+                        пользователь
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2">{u.links_count}</td>
-                  <td className="px-4 py-2 text-slate-400">
+                  <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
                     {new Date(u.created_at).toLocaleString("ru-RU")}
                   </td>
                   <td className="px-4 py-2 text-right">
@@ -119,7 +126,7 @@ export default function AdminPage() {
                             name: u.username,
                           })
                         }
-                        className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-xs"
+                        className="rounded bg-rose-600/90 hover:bg-rose-500 text-white px-3 py-1 text-xs"
                       >
                         Удалить
                       </button>
@@ -135,9 +142,13 @@ export default function AdminPage() {
       <section>
         <h2 className="text-xl font-semibold mb-3">Все ссылки</h2>
         {allLinks.length === 0 ? (
-          <p className="text-slate-400 text-sm">Ссылок нет.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
+            Ссылок нет.
+          </p>
         ) : (
-          <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/40">
+          <ul
+            className={`divide-y divide-slate-200 dark:divide-slate-800 ${cardCls}`}
+          >
             {allLinks.map((l) => (
               <li
                 key={l.id}
@@ -148,11 +159,11 @@ export default function AdminPage() {
                     href={l.short_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-indigo-400 hover:underline font-mono break-all"
+                    className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono break-all"
                   >
                     {l.short_url}
                   </a>
-                  <div className="text-xs text-slate-400 truncate">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     → {l.target_url}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
@@ -174,7 +185,7 @@ export default function AdminPage() {
                       url: l.short_url,
                     })
                   }
-                  className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-sm"
+                  className="rounded bg-rose-600/90 hover:bg-rose-500 text-white px-3 py-1 text-sm"
                 >
                   Удалить
                 </button>
@@ -194,13 +205,16 @@ export default function AdminPage() {
         message={
           confirmState?.kind === "user" ? (
             <>
-              Пользователь <span className="text-slate-100 font-medium">«{confirmState.name}»</span>{" "}
+              Пользователь{" "}
+              <span className="text-slate-900 dark:text-slate-100 font-medium">
+                «{confirmState.name}»
+              </span>{" "}
               и все его ссылки будут удалены без возможности восстановления.
             </>
           ) : confirmState?.kind === "link" ? (
             <>
               Ссылка{" "}
-              <span className="font-mono text-slate-100">
+              <span className="font-mono text-slate-900 dark:text-slate-100">
                 {confirmState.url}
               </span>{" "}
               перестанет работать. Действие нельзя отменить.

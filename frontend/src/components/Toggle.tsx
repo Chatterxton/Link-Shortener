@@ -18,7 +18,9 @@ export function Toggle({ checked, onChange, label, description }: Props) {
     >
       <span
         className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-indigo-600" : "bg-slate-700 group-hover:bg-slate-600"
+          checked
+            ? "bg-indigo-600"
+            : "bg-slate-300 dark:bg-slate-700 group-hover:bg-slate-400 dark:group-hover:bg-slate-600"
         }`}
       >
         <span
@@ -28,7 +30,9 @@ export function Toggle({ checked, onChange, label, description }: Props) {
         />
       </span>
       <span className="flex flex-col">
-        <span className="text-sm text-slate-200">{label}</span>
+        <span className="text-sm text-slate-700 dark:text-slate-200">
+          {label}
+        </span>
         {description && (
           <span className="text-xs text-slate-500">{description}</span>
         )}

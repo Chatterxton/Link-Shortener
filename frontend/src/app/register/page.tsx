@@ -21,11 +21,16 @@ export default function RegisterPage() {
       authStore.set(res.token, res.user);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось зарегистрироваться");
+      setError(
+        err instanceof Error ? err.message : "Не удалось зарегистрироваться",
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const inputCls =
+    "w-full rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 transition-colors";
 
   return (
     <div className="max-w-sm mx-auto">
@@ -35,7 +40,7 @@ export default function RegisterPage() {
       </p>
       <form onSubmit={submit} className="space-y-4">
         <input
-          className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
+          className={inputCls}
           placeholder="Логин (3-64 символа)"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -44,7 +49,7 @@ export default function RegisterPage() {
           maxLength={64}
         />
         <input
-          className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
+          className={inputCls}
           type="password"
           placeholder="Пароль (минимум 6 символов)"
           value={password}
@@ -52,17 +57,22 @@ export default function RegisterPage() {
           required
           minLength={6}
         />
-        {error && <p className="text-rose-400 text-sm">{error}</p>}
+        {error && (
+          <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+        )}
         <button
           disabled={loading}
-          className="w-full rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 font-medium"
+          className="w-full rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 px-4 py-2 font-medium"
         >
           {loading ? "Создание..." : "Зарегистрироваться"}
         </button>
       </form>
-      <p className="text-sm text-slate-400 mt-4">
+      <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
         Уже есть аккаунт?{" "}
-        <Link href="/login" className="text-indigo-400 hover:underline">
+        <Link
+          href="/login"
+          className="text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
           Войти
         </Link>
       </p>

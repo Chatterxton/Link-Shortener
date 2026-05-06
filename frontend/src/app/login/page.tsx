@@ -27,36 +27,44 @@ export default function LoginPage() {
     }
   };
 
+  const inputCls =
+    "w-full rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 transition-colors";
+
   return (
     <div className="max-w-sm mx-auto">
       <h1 className="text-2xl font-semibold mb-6">Вход</h1>
       <form onSubmit={submit} className="space-y-4">
         <input
-          className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
+          className={inputCls}
           placeholder="Логин"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
         <input
-          className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
+          className={inputCls}
           type="password"
           placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error && <p className="text-rose-400 text-sm">{error}</p>}
+        {error && (
+          <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
+        )}
         <button
           disabled={loading}
-          className="w-full rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 font-medium"
+          className="w-full rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 px-4 py-2 font-medium"
         >
           {loading ? "Вход..." : "Войти"}
         </button>
       </form>
-      <p className="text-sm text-slate-400 mt-4">
+      <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
         Нет аккаунта?{" "}
-        <Link href="/register" className="text-indigo-400 hover:underline">
+        <Link
+          href="/register"
+          className="text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
           Зарегистрироваться
         </Link>
       </p>

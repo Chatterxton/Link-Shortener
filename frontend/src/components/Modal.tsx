@@ -38,7 +38,7 @@ export function Modal({ open, onClose, children, className = "" }: Props) {
       onClick={onClose}
     >
       <div
-        className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 animate-popIn ${className}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4 animate-popIn ${className}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
