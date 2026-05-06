@@ -43,6 +43,7 @@ func main() {
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	r.Use(appmw.SecurityHeaders)
 	r.Use(appmw.CORS(cfg.CORSOrigin))
 
 	authH := handlers.NewAuthHandler(pool, jwtMgr, cfg.CookieSecure(), jwtTTL)

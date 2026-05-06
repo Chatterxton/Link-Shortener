@@ -18,21 +18,44 @@ func NewRedirectHandler(pool *pgxpool.Pool) *RedirectHandler {
 	return &RedirectHandler{pool: pool}
 }
 
+// Redirect resolves the short code and increments the click counter atomically.
+// The conditional UPDATE prevents a TOCTOU race where multiple concurrent
+// requests could each pass a non-atomic check and exceed max_clicks (critical
+// for one-time links).
 func (h *RedirectHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
 
-	// Atomically: fetch link, increment counter only if not expired and not maxed out.
-	// Two-step: check + conditional increment via UPDATE ... RETURNING.
+	var target string
+	err := h.pool.QueryRow(r.Context(),
+		`UPDATE links
+		 SET click_count = click_count + 1
+		 WHERE code = $1
+		   AND (expires_at IS NULL OR expires_at > NOW())
+		   AND (max_clicks IS NULL OR click_count < max_clicks)
+		 RETURNING target_url`,
+		code,
+	).Scan(&target)
+
+	if err == nil {
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		renderErrorHTML(w, http.StatusInternalServerError,
+			"Ошибка сервера", "Повторите попытку позднее.")
+		return
+	}
+
+	// UPDATE matched no rows: figure out why.
 	var (
-		target     string
 		expiresAt  *time.Time
 		clickCount int64
 		maxClicks  *int
 	)
-	err := h.pool.QueryRow(r.Context(),
-		`SELECT target_url, expires_at, click_count, max_clicks FROM links WHERE code = $1`,
+	err = h.pool.QueryRow(r.Context(),
+		`SELECT expires_at, click_count, max_clicks FROM links WHERE code = $1`,
 		code,
-	).Scan(&target, &expiresAt, &clickCount, &maxClicks)
+	).Scan(&expiresAt, &clickCount, &maxClicks)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			renderErrorHTML(w, http.StatusNotFound,
@@ -51,17 +74,7 @@ func (h *RedirectHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 			"Эта короткая ссылка больше не активна.")
 		return
 	}
-
-	if maxClicks != nil && clickCount >= int64(*maxClicks) {
-		renderErrorHTML(w, http.StatusGone,
-			"Лимит переходов исчерпан",
-			"По этой ссылке нельзя больше перейти.")
-		return
-	}
-
-	// Best-effort increment. Failure is logged via Recoverer middleware but should not block redirect.
-	_, _ = h.pool.Exec(r.Context(),
-		`UPDATE links SET click_count = click_count + 1 WHERE code = $1`, code)
-
-	http.Redirect(w, r, target, http.StatusFound)
+	renderErrorHTML(w, http.StatusGone,
+		"Лимит переходов исчерпан",
+		"По этой ссылке нельзя больше перейти.")
 }

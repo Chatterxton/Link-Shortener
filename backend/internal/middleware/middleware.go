@@ -69,6 +69,18 @@ func IsAdmin(ctx context.Context) bool {
 	return v
 }
 
+// SecurityHeaders sets a baseline of HTTP response headers that protect against
+// MIME sniffing, clickjacking and referrer leaks. HSTS is intentionally left to
+// the host nginx since TLS termination happens there.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // CORS returns middleware that handles cross-origin requests.
 // If allowedOrigin is empty, no CORS headers are emitted (suitable when frontend
 // and backend share the same origin via reverse proxy). When set, the configured
