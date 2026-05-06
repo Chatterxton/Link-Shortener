@@ -68,20 +68,12 @@ export function Navbar() {
               </button>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              >
-                Вход
-              </Link>
-              <Link
-                href="/register"
-                className="rounded bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1"
-              >
-                Регистрация
-              </Link>
-            </>
+            <Link
+              href="/login"
+              className="rounded bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1"
+            >
+              Вход
+            </Link>
           )}
           <ThemeToggle />
         </nav>
