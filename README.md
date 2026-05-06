@@ -132,18 +132,106 @@ curl -X POST http://localhost:8080/api/links \
 
 ---
 
-## Размещение за хостовым nginx
+## Деплой на продакшен
 
-Compose-файл привязывает все порты контейнеров к `127.0.0.1`, поэтому
-наружу ничего напрямую не торчит. В существующий конфиг nginx добавьте
-что-то такое (полный пример — в [`nginx.example.conf`](nginx.example.conf)):
+Гайд написан под Ubuntu/Debian-сервер с уже работающим nginx. На других
+дистрибутивах меняются только команды установки пакетов.
+
+### 1. Подготовка сервера
+
+Установите Docker Engine и плагин Compose, если их ещё нет:
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo apt install -y docker-compose-plugin
+sudo usermod -aG docker $USER
+# перелогиньтесь, чтобы группа docker применилась
+```
+
+Проверьте версии:
+
+```bash
+docker --version
+docker compose version
+```
+
+### 2. Клонирование и настройка `.env`
+
+```bash
+sudo mkdir -p /opt/link-shortener
+sudo chown $USER:$USER /opt/link-shortener
+cd /opt/link-shortener
+git clone https://github.com/Chatterxton/Link-Shortener.git .
+cp .env.example .env
+```
+
+Сгенерируйте безопасные секреты и подставьте их в `.env`:
+
+```bash
+# Сильный JWT-секрет
+openssl rand -hex 48
+# Пароль для postgres
+openssl rand -base64 24
+```
+
+Минимальный продакшен-`.env`:
+
+```env
+PUBLIC_DOMAIN=short.example.com
+PUBLIC_SCHEME=https
+PUBLIC_PORT_SUFFIX=
+
+BACKEND_PORT=8080
+FRONTEND_PORT=3000
+
+POSTGRES_USER=shortener
+POSTGRES_PASSWORD=<сгенерированный пароль>
+POSTGRES_DB=shortener
+POSTGRES_PORT=5432
+
+JWT_SECRET=<сгенерированный hex-секрет>
+JWT_TTL_HOURS=72
+SHORT_CODE_LENGTH=7
+
+NEXT_PUBLIC_API_BASE=
+```
+
+> Если на хосте уже занят какой-то из портов 8080/3000/5432 — поменяйте
+> `*_PORT` в `.env` и одновременно поправьте upstream-ы в nginx.
+
+### 3. Запуск контейнеров
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f backend   # убедитесь, что миграции применились
+```
+
+Все три сервиса должны быть в статусе `running` и слушать только на
+`127.0.0.1`. Проверка:
+
+```bash
+ss -ltn | grep -E '127\.0\.0\.1:(3000|8080|5432)'
+curl -fsS http://127.0.0.1:8080/healthz && echo OK
+```
+
+### 4. Настройка nginx
+
+Создайте конфиг сайта на основе [`nginx.example.conf`](nginx.example.conf):
+
+```bash
+sudo cp nginx.example.conf /etc/nginx/sites-available/link-shortener
+sudo nano /etc/nginx/sites-available/link-shortener   # поправьте server_name
+sudo ln -s /etc/nginx/sites-available/link-shortener /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Минимальный server-блок (HTTP, без TLS — будет добавлен на следующем шаге):
 
 ```nginx
 server {
-    listen 443 ssl;
+    listen 80;
     server_name short.example.com;
-
-    # ssl_certificate ... ;
 
     location /api/ { proxy_pass http://127.0.0.1:8080; }
     location /r/   { proxy_pass http://127.0.0.1:8080; }
@@ -151,18 +239,70 @@ server {
 }
 ```
 
-И в `.env`:
+Не забудьте проставить proxy-заголовки (`Host`, `X-Forwarded-For`,
+`X-Forwarded-Proto`) — они уже есть в [`nginx.example.conf`](nginx.example.conf).
 
-```env
-PUBLIC_DOMAIN=short.example.com
-PUBLIC_SCHEME=https
-PUBLIC_PORT_SUFFIX=
-NEXT_PUBLIC_API_BASE=
+### 5. SSL через Let's Encrypt
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d short.example.com
 ```
 
-`NEXT_PUBLIC_API_BASE` остаётся пустым — фронтенд будет ходить
-относительными путями к тому же домену, а nginx направит запросы
-в нужный контейнер.
+Certbot сам отредактирует ваш nginx-конфиг (добавит `listen 443 ssl;` и
+блок редиректа `80 → 443`). Автообновление по таймеру включено по
+умолчанию — проверить можно через `systemctl list-timers | grep certbot`.
+
+После выпуска сертификата в `.env` уже стоит `PUBLIC_SCHEME=https`, так
+что сгенерированные короткие ссылки автоматически получат правильный
+протокол.
+
+### 6. Первая регистрация
+
+Откройте `https://short.example.com/register` и создайте аккаунт — он
+получит права администратора. Сразу после этого можно пользоваться
+сервисом или закрыть регистрацию (см. ниже).
+
+### 7. Обновление
+
+```bash
+cd /opt/link-shortener
+git pull
+docker compose up -d --build
+```
+
+Миграции применятся автоматически при старте бэкенда.
+
+### 8. Бэкап БД
+
+Том postgres называется `link-shortener_db_data`. Дамп руками:
+
+```bash
+docker compose exec -T db \
+  pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" \
+  | gzip > backup-$(date +%F).sql.gz
+```
+
+Восстановление:
+
+```bash
+gunzip -c backup-2026-05-06.sql.gz \
+  | docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
+
+Имеет смысл повесить это на cron + класть в S3/rsync на удалённое
+хранилище.
+
+### 9. Полезные команды
+
+```bash
+docker compose logs -f backend         # логи бэкенда
+docker compose logs -f frontend        # логи фронтенда
+docker compose restart backend         # перезапустить один сервис
+docker compose down                    # остановить всё (данные сохраняются в томе)
+docker compose down -v                 # ВНИМАНИЕ: удалит том БД
+docker compose exec db psql -U "$POSTGRES_USER" "$POSTGRES_DB"  # psql внутри контейнера
+```
 
 ---
 
