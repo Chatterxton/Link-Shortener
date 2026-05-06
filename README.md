@@ -1,8 +1,8 @@
 # Link Shortener
 
-A self-hosted URL shortener with a Go backend, a Next.js + Tailwind frontend,
-and PostgreSQL — all wired up via `docker-compose` and designed to sit behind
-your existing host nginx.
+Самохостящийся сокращатель ссылок: бэкенд на Go, фронтенд на Next.js + Tailwind,
+PostgreSQL — всё связано через `docker-compose` и спроектировано так, чтобы
+работать за уже стоящим на сервере nginx.
 
 ![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
@@ -12,38 +12,38 @@ your existing host nginx.
 
 ---
 
-## Features
+## Возможности
 
-- **Login / register** — JWT-based, bcrypt-hashed passwords
-- **First user is admin** — bootstrapped automatically on initial registration
-- **Custom slugs** — pick your own (`/r/my-link`) or let the server generate one
-- **Optional expiration** — links can be set to expire at a specific time
-- **Admin panel** — list & delete users, view & delete every link in the system
-- **Single binary backend** — embedded SQL migrations, no extra tooling
-- **Production-ready compose** — services bind to `127.0.0.1`, ready for a reverse proxy
+- **Регистрация и вход** — JWT, пароли хешируются bcrypt
+- **Первый пользователь становится админом** — назначается автоматически при первой регистрации
+- **Кастомные slug-и** — можно задать свой (`/r/my-link`) либо позволить серверу сгенерировать
+- **Опциональный срок действия** — у ссылки можно задать дату истечения
+- **Админ-панель** — список и удаление пользователей, просмотр и удаление любых ссылок
+- **Один бинарник на бэкенде** — миграции встроены через `embed`, дополнительные тулзы не нужны
+- **Готов к продакшену** — все контейнеры публикуют порты только на `127.0.0.1`, готовы для reverse-proxy
 
 ---
 
-## Tech stack
+## Стек
 
-| Layer    | Tech                                                    |
+| Слой     | Технологии                                              |
 | -------- | ------------------------------------------------------- |
 | Backend  | Go 1.22, [chi](https://github.com/go-chi/chi), [pgx](https://github.com/jackc/pgx), `golang-jwt`, `bcrypt` |
 | Frontend | Next.js 14 (App Router), React 18, Tailwind CSS 3       |
-| Database | PostgreSQL 16                                           |
+| БД       | PostgreSQL 16                                           |
 | Runtime  | Docker Compose                                          |
-| Proxy    | Host nginx (config example included)                    |
+| Прокси   | Хостовый nginx (пример конфига в комплекте)             |
 
 ---
 
-## Architecture
+## Архитектура
 
 ```
                   ┌─────────────────────────────────────────────┐
-   internet ────► │  nginx on host (TLS, virtual host)          │
+   интернет ────► │  nginx на хосте (TLS, virtual host)         │
                   └────────┬─────────────────────────┬──────────┘
                            │                         │
-            /api/*, /r/*   ▼                         ▼   everything else
+            /api/*, /r/*   ▼                         ▼   всё остальное
                   ┌────────────────┐         ┌───────────────────┐
                   │ backend:8080   │         │ frontend:3000     │
                   │ (Go, chi)      │         │ (Next.js standalone)
@@ -53,77 +53,77 @@ your existing host nginx.
                   ┌────────────────┐
                   │ postgres:5432  │
                   └────────────────┘
-       (all three containers publish only to 127.0.0.1)
+       (все три контейнера публикуются только на 127.0.0.1)
 ```
 
-Short URLs are intentionally prefixed with `/r/` so the host nginx can route
-cleanly without an explicit allow-list of frontend routes.
+Короткие ссылки намеренно идут с префиксом `/r/`, чтобы хостовый nginx мог
+маршрутизировать их без явного списка путей фронтенда.
 
 ---
 
-## Quick start
+## Быстрый старт
 
 ```bash
 git clone https://github.com/Chatterxton/Link-Shortener.git
 cd Link-Shortener
 cp .env.example .env
-# edit .env — at minimum set JWT_SECRET, POSTGRES_PASSWORD and PUBLIC_DOMAIN
+# отредактируйте .env — как минимум JWT_SECRET, POSTGRES_PASSWORD и PUBLIC_DOMAIN
 
 docker compose up -d --build
 ```
 
-Open `http://localhost:3000` (or your domain through nginx) and register —
-the first account becomes admin.
+Откройте `http://localhost:3000` (или ваш домен через nginx) и зарегистрируйтесь —
+первый созданный аккаунт получит права администратора.
 
 ---
 
-## Configuration
+## Конфигурация
 
-All config lives in a single `.env` file at the repo root.
+Вся конфигурация — в одном `.env` в корне репозитория.
 
-| Variable               | Default     | Purpose                                                      |
-| ---------------------- | ----------- | ------------------------------------------------------------ |
-| `PUBLIC_DOMAIN`        | `localhost` | Domain shown in generated short URLs                         |
-| `PUBLIC_SCHEME`        | `http`      | `http` or `https` for generated short URLs                   |
-| `PUBLIC_PORT_SUFFIX`   | *(empty)*   | e.g. `:8080` for direct dev access; leave empty behind nginx |
-| `BACKEND_PORT`         | `8080`      | Host port for backend (bound to `127.0.0.1`)                 |
-| `FRONTEND_PORT`        | `3000`      | Host port for frontend (bound to `127.0.0.1`)                |
-| `POSTGRES_USER`        | `shortener` | DB user                                                      |
-| `POSTGRES_PASSWORD`    | —           | DB password (**change this**)                                |
-| `POSTGRES_DB`          | `shortener` | DB name                                                      |
-| `POSTGRES_PORT`        | `5432`      | Host port for postgres (bound to `127.0.0.1`)                |
-| `JWT_SECRET`           | —           | Random string used to sign JWTs (**change this**)            |
-| `JWT_TTL_HOURS`        | `72`        | Token lifetime                                               |
-| `SHORT_CODE_LENGTH`    | `7`         | Length of auto-generated codes (base62)                      |
-| `NEXT_PUBLIC_API_BASE` | *(empty)*   | Empty = same-origin via nginx; set to `http://localhost:8080` for direct dev |
+| Переменная             | По умолчанию | Назначение                                                    |
+| ---------------------- | ------------ | ------------------------------------------------------------- |
+| `PUBLIC_DOMAIN`        | `localhost`  | Домен, который попадёт в сгенерированные короткие ссылки      |
+| `PUBLIC_SCHEME`        | `http`       | `http` или `https` для коротких ссылок                        |
+| `PUBLIC_PORT_SUFFIX`   | *(пусто)*    | Например `:8080` для прямого dev-доступа; пусто за nginx      |
+| `BACKEND_PORT`         | `8080`       | Порт бэкенда на хосте (привязан к `127.0.0.1`)                |
+| `FRONTEND_PORT`        | `3000`       | Порт фронтенда на хосте (привязан к `127.0.0.1`)              |
+| `POSTGRES_USER`        | `shortener`  | Пользователь БД                                               |
+| `POSTGRES_PASSWORD`    | —            | Пароль БД (**обязательно поменять**)                          |
+| `POSTGRES_DB`          | `shortener`  | Имя БД                                                        |
+| `POSTGRES_PORT`        | `5432`       | Порт postgres на хосте (привязан к `127.0.0.1`)               |
+| `JWT_SECRET`           | —            | Длинная случайная строка для подписи JWT (**обязательно поменять**) |
+| `JWT_TTL_HOURS`        | `72`         | Время жизни токена                                            |
+| `SHORT_CODE_LENGTH`    | `7`          | Длина автоматически генерируемого кода (base62)               |
+| `NEXT_PUBLIC_API_BASE` | *(пусто)*    | Пусто = same-origin через nginx; для прямого dev: `http://localhost:8080` |
 
 ---
 
-## API reference
+## API
 
-| Method   | Path                       | Auth        | Purpose                                                |
-| -------- | -------------------------- | ----------- | ------------------------------------------------------ |
-| `POST`   | `/api/auth/register`       | public      | Create account; first registration is granted admin    |
-| `POST`   | `/api/auth/login`          | public      | Get a JWT                                              |
-| `GET`    | `/api/auth/me`             | bearer      | Current user                                           |
-| `GET`    | `/api/links`               | bearer      | List your links                                        |
-| `POST`   | `/api/links`               | bearer      | Create a link (`target_url`, optional `custom_slug`, `expires_at` RFC3339) |
-| `DELETE` | `/api/links/{id}`          | bearer      | Delete your own link (admin can delete any)            |
-| `GET`    | `/api/admin/users`         | admin       | List all users with link counts                        |
-| `DELETE` | `/api/admin/users/{id}`    | admin       | Delete a user and all their links                      |
-| `GET`    | `/api/admin/links`         | admin       | List every link in the system                          |
-| `GET`    | `/r/{code}`                | public      | Resolve a short link → 302 redirect (410 if expired)   |
-| `GET`    | `/healthz`                 | public      | Liveness probe                                         |
+| Метод    | Путь                       | Доступ      | Назначение                                              |
+| -------- | -------------------------- | ----------- | ------------------------------------------------------- |
+| `POST`   | `/api/auth/register`       | публичный   | Регистрация; первая регистрация даёт права админа       |
+| `POST`   | `/api/auth/login`          | публичный   | Получить JWT                                            |
+| `GET`    | `/api/auth/me`             | bearer      | Текущий пользователь                                    |
+| `GET`    | `/api/links`               | bearer      | Список ваших ссылок                                     |
+| `POST`   | `/api/links`               | bearer      | Создать ссылку (`target_url`, опционально `custom_slug`, `expires_at` RFC3339) |
+| `DELETE` | `/api/links/{id}`          | bearer      | Удалить свою ссылку (админ может удалить любую)         |
+| `GET`    | `/api/admin/users`         | admin       | Список всех пользователей со счётчиком ссылок           |
+| `DELETE` | `/api/admin/users/{id}`    | admin       | Удалить пользователя со всеми его ссылками              |
+| `GET`    | `/api/admin/links`         | admin       | Список всех ссылок в системе                            |
+| `GET`    | `/r/{code}`                | публичный   | Перейти по короткой ссылке → 302 (410, если истекла)    |
+| `GET`    | `/healthz`                 | публичный   | Healthcheck                                             |
 
-### Example
+### Пример
 
 ```bash
-# Register (first call → admin)
+# Регистрация (первая → становится админом)
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"hunter2!"}'
 
-# Create a link with a custom slug + expiration
+# Создание ссылки с кастомным slug-ом и сроком действия
 curl -X POST http://localhost:8080/api/links \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -132,11 +132,11 @@ curl -X POST http://localhost:8080/api/links \
 
 ---
 
-## Hosting it behind your nginx
+## Размещение за хостовым nginx
 
-The compose file binds every container port to `127.0.0.1`, so nothing is
-exposed to the internet directly. Drop something like the snippet below into
-your existing nginx config (full example: [`nginx.example.conf`](nginx.example.conf)):
+Compose-файл привязывает все порты контейнеров к `127.0.0.1`, поэтому
+наружу ничего напрямую не торчит. В существующий конфиг nginx добавьте
+что-то такое (полный пример — в [`nginx.example.conf`](nginx.example.conf)):
 
 ```nginx
 server {
@@ -151,7 +151,7 @@ server {
 }
 ```
 
-Then in `.env`:
+И в `.env`:
 
 ```env
 PUBLIC_DOMAIN=short.example.com
@@ -160,28 +160,29 @@ PUBLIC_PORT_SUFFIX=
 NEXT_PUBLIC_API_BASE=
 ```
 
-`NEXT_PUBLIC_API_BASE` is left empty so the frontend uses same-origin
-relative requests — nginx routes them to the right container.
+`NEXT_PUBLIC_API_BASE` остаётся пустым — фронтенд будет ходить
+относительными путями к тому же домену, а nginx направит запросы
+в нужный контейнер.
 
 ---
 
-## Project structure
+## Структура проекта
 
 ```
 .
-├── backend/                  # Go service
-│   ├── main.go               # router, server lifecycle
+├── backend/                  # Go-сервис
+│   ├── main.go               # роутер, жизненный цикл сервера
 │   ├── internal/
-│   │   ├── auth/             # JWT manager
-│   │   ├── config/           # env loader
-│   │   ├── db/               # pgx pool + embedded migrations
-│   │   ├── handlers/         # auth, links, admin, redirect, shared utils
-│   │   └── middleware/       # auth/admin guards, CORS
+│   │   ├── auth/             # JWT-менеджер
+│   │   ├── config/           # загрузка переменных окружения
+│   │   ├── db/               # pgx pool + embedded-миграции
+│   │   ├── handlers/         # auth, links, admin, redirect, общие утилиты
+│   │   └── middleware/       # auth/admin guard-ы, CORS
 │   └── Dockerfile
-├── frontend/                 # Next.js app
+├── frontend/                 # Next.js-приложение
 │   ├── src/app/              # /, /login, /register, /dashboard, /admin
 │   ├── src/components/       # Navbar
-│   ├── src/lib/              # api client, auth store
+│   ├── src/lib/              # API-клиент, хранилище токена
 │   └── Dockerfile
 ├── docker-compose.yml
 ├── nginx.example.conf
@@ -190,13 +191,14 @@ relative requests — nginx routes them to the right container.
 
 ---
 
-## Development notes
+## Заметки разработчика
 
-- **Migrations** are embedded into the binary via `embed.FS` and executed on
-  every boot — they're written with `IF NOT EXISTS`, so re-running is safe.
-- **Short codes** use a base62 alphabet, generated with `crypto/rand`. On the
-  rare collision the handler retries up to 10 times before failing.
-- **Expired links** return HTTP `410 Gone` rather than a redirect — they stay
-  in the DB so the slug isn't silently reusable.
-- **Admin bootstrap** is decided at registration time (`COUNT(*) == 0`) inside
-  a transaction, so two simultaneous first-registrations can't both win.
+- **Миграции** встроены в бинарник через `embed.FS` и применяются при каждом
+  запуске — все они написаны с `IF NOT EXISTS`, повторный запуск безопасен.
+- **Короткие коды** генерируются из алфавита base62 через `crypto/rand`. На
+  редкой коллизии хендлер делает до 10 повторных попыток.
+- **Истёкшие ссылки** возвращают HTTP `410 Gone`, а не редирект, — они
+  остаются в БД, чтобы slug нельзя было молча переиспользовать.
+- **Bootstrap админа** определяется в момент регистрации (`COUNT(*) == 0`)
+  внутри транзакции, так что две одновременные первые регистрации
+  не смогут обе получить права.
