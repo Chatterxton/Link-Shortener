@@ -1,12 +1,14 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  api,
-  type AdminUser,
-  type Link as LinkRow,
-} from "@/lib/api";
+import { api, type AdminUser, type Link as LinkRow } from "@/lib/api";
 import { authStore } from "@/lib/auth";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+type ConfirmState =
+  | { kind: "user"; id: number; name: string }
+  | { kind: "link"; id: number; url: string }
+  | null;
 
 export default function AdminPage() {
   const router = useRouter();
@@ -14,6 +16,7 @@ export default function AdminPage() {
   const [allLinks, setAllLinks] = useState<LinkRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -52,30 +55,17 @@ export default function AdminPage() {
     refresh();
   }, [refresh, router]);
 
-  const deleteUser = async (id: number, username: string) => {
-    if (
-      !confirm(`Удалить пользователя «${username}» со всеми его ссылками?`)
-    )
-      return;
+  const performConfirm = async () => {
+    if (!confirmState) return;
     try {
-      await api.adminDeleteUser(id);
+      if (confirmState.kind === "user") {
+        await api.adminDeleteUser(confirmState.id);
+      } else {
+        await api.deleteLink(confirmState.id);
+      }
       await refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Не удалось удалить пользователя",
-      );
-    }
-  };
-
-  const deleteLink = async (id: number) => {
-    if (!confirm("Удалить эту ссылку?")) return;
-    try {
-      await api.deleteLink(id);
-      await refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Не удалось удалить ссылку",
-      );
+      setError(err instanceof Error ? err.message : "Ошибка удаления");
     }
   };
 
@@ -122,7 +112,13 @@ export default function AdminPage() {
                   <td className="px-4 py-2 text-right">
                     {!u.is_admin && (
                       <button
-                        onClick={() => deleteUser(u.id, u.username)}
+                        onClick={() =>
+                          setConfirmState({
+                            kind: "user",
+                            id: u.id,
+                            name: u.username,
+                          })
+                        }
                         className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-xs"
                       >
                         Удалить
@@ -171,7 +167,13 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => deleteLink(l.id)}
+                  onClick={() =>
+                    setConfirmState({
+                      kind: "link",
+                      id: l.id,
+                      url: l.short_url,
+                    })
+                  }
                   className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-sm"
                 >
                   Удалить
@@ -181,6 +183,37 @@ export default function AdminPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={
+          confirmState?.kind === "user"
+            ? "Удалить пользователя"
+            : "Удалить ссылку"
+        }
+        message={
+          confirmState?.kind === "user" ? (
+            <>
+              Пользователь <span className="text-slate-100 font-medium">«{confirmState.name}»</span>{" "}
+              и все его ссылки будут удалены без возможности восстановления.
+            </>
+          ) : confirmState?.kind === "link" ? (
+            <>
+              Ссылка{" "}
+              <span className="font-mono text-slate-100">
+                {confirmState.url}
+              </span>{" "}
+              перестанет работать. Действие нельзя отменить.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmLabel="Удалить"
+        variant="danger"
+        onConfirm={performConfirm}
+        onClose={() => setConfirmState(null)}
+      />
     </div>
   );
 }

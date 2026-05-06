@@ -3,16 +3,22 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Link as LinkRow } from "@/lib/api";
 import { authStore } from "@/lib/auth";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Toggle } from "@/components/Toggle";
+import { DateTimePicker } from "@/components/DateTimePicker";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [target, setTarget] = useState("");
+  const [slugEnabled, setSlugEnabled] = useState(false);
   const [slug, setSlug] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [expiresEnabled, setExpiresEnabled] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,15 +48,27 @@ export default function DashboardPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (slugEnabled && slug.trim() && !/^[a-zA-Z0-9_-]{3,64}$/.test(slug.trim())) {
+      setError("Свой slug: 3-64 символа, латиница/цифры/_/-");
+      return;
+    }
+    if (expiresEnabled && !expiresAt) {
+      setError("Выберите дату и время истечения");
+      return;
+    }
+
     setCreating(true);
     try {
-      const expiresIso = expiresAt
-        ? new Date(expiresAt).toISOString()
-        : undefined;
-      await api.createLink(target.trim(), slug.trim() || undefined, expiresIso);
+      const expiresIso =
+        expiresEnabled && expiresAt ? expiresAt.toISOString() : undefined;
+      const slugVal = slugEnabled && slug.trim() ? slug.trim() : undefined;
+      await api.createLink(target.trim(), slugVal, expiresIso);
       setTarget("");
       setSlug("");
-      setExpiresAt("");
+      setSlugEnabled(false);
+      setExpiresAt(null);
+      setExpiresEnabled(false);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось создать");
@@ -59,10 +77,10 @@ export default function DashboardPage() {
     }
   };
 
-  const remove = async (id: number) => {
-    if (!confirm("Удалить эту ссылку?")) return;
+  const performDelete = async () => {
+    if (deletingId === null) return;
     try {
-      await api.deleteLink(id);
+      await api.deleteLink(deletingId);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось удалить");
@@ -85,7 +103,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold mb-4">Создать короткую ссылку</h1>
         <form
           onSubmit={create}
-          className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/40 p-4"
+          className="space-y-4 rounded-lg border border-slate-800 bg-slate-900/40 p-4"
         >
           <input
             className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
@@ -93,25 +111,54 @@ export default function DashboardPage() {
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             required
+            type="url"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
-              placeholder="Свой slug (опционально)"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              pattern="[a-zA-Z0-9_-]{3,64}"
-              title="3-64 символа, латиница/цифры/_/-"
+
+          <div className="space-y-2">
+            <Toggle
+              checked={slugEnabled}
+              onChange={(v) => {
+                setSlugEnabled(v);
+                if (!v) setSlug("");
+              }}
+              label="Свой slug"
+              description="Например, /r/my-link вместо случайного кода"
             />
-            <input
-              type="datetime-local"
-              className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              title="Срок действия (опционально)"
-            />
+            {slugEnabled && (
+              <input
+                className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500 animate-popIn"
+                placeholder="my-link"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                pattern="[a-zA-Z0-9_-]{3,64}"
+                title="3-64 символа, латиница/цифры/_/-"
+              />
+            )}
           </div>
+
+          <div className="space-y-2">
+            <Toggle
+              checked={expiresEnabled}
+              onChange={(v) => {
+                setExpiresEnabled(v);
+                if (!v) setExpiresAt(null);
+              }}
+              label="Срок действия"
+              description="Ссылка перестанет работать после указанной даты"
+            />
+            {expiresEnabled && (
+              <div className="animate-popIn">
+                <DateTimePicker
+                  value={expiresAt}
+                  onChange={setExpiresAt}
+                  minDate={new Date()}
+                />
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-rose-400 text-sm">{error}</p>}
+
           <button
             disabled={creating}
             className="rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 font-medium"
@@ -162,7 +209,7 @@ export default function DashboardPage() {
                     {copied === l.id ? "Скопировано!" : "Копировать"}
                   </button>
                   <button
-                    onClick={() => remove(l.id)}
+                    onClick={() => setDeletingId(l.id)}
                     className="rounded bg-rose-700/70 hover:bg-rose-600 px-3 py-1 text-sm"
                   >
                     Удалить
@@ -173,6 +220,16 @@ export default function DashboardPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deletingId !== null}
+        title="Удалить ссылку"
+        message="Эта ссылка перестанет работать. Действие нельзя отменить."
+        confirmLabel="Удалить"
+        variant="danger"
+        onConfirm={performDelete}
+        onClose={() => setDeletingId(null)}
+      />
     </div>
   );
 }
