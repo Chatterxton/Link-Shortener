@@ -6,7 +6,7 @@ import { authStore } from "@/lib/auth";
 export default function HomePage() {
   const router = useRouter();
   useEffect(() => {
-    if (authStore.token()) {
+    if (authStore.user()) {
       router.replace("/dashboard");
     } else {
       router.replace("/login");
